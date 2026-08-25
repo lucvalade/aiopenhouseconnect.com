@@ -41,10 +41,13 @@ export interface Listing {
   originatingSystemName?: string;
   country?: string;
   brokerageName?: string;
+  importedFrom?: string;
+  sourceUrl?: string;
   brokerageLogo?: string;
   brandingTemplate?: "luxury" | "tech" | "standard";
   qrDestination?: "sign-in" | "microsite" | "tour" | "presentation";
   agentName?: string;
+  communityName?: string;
   agentPhone?: string;
   description?: string;
   documents?: { name: string; url: string }[];

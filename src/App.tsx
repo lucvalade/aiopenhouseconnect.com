@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Lock, Eye, EyeOff, User, Mail, Phone, Sparkles, CheckCircle, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "./hooks/useAuth";
+import AgentVoiceControl from "@/components/AgentVoiceControl";
 
 export default function App() {
   const { user } = useAuth();
@@ -369,6 +370,7 @@ export default function App() {
         </div>
       )}
 
+      {effectiveUnlocked && <AgentVoiceControl />}
       <Toaster />
     </div>
   );

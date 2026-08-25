@@ -578,8 +578,27 @@ Format the revised description clearly in clean paragraphs (maximum 3 sentences 
   const [country, setCountry] = useState("US");
   const [mlsCountry, setMlsCountry] = useState("US");
   const [brokerageName, setBrokerageName] = useState("");
+  const [importedFrom, setImportedFrom] = useState("");
   const [brokerageLogo, setBrokerageLogo] = useState("");
   const [agentName, setAgentName] = useState("");
+  const [communityName, setCommunityName] = useState("");
+
+  const cleanImportedFrom = (urlOrName: string): string => {
+    if (!urlOrName) return "";
+    let clean = urlOrName.trim();
+    if (clean.toLowerCase().includes('realtor.ca')) return 'Realtor.ca';
+    if (clean.toLowerCase().includes('remaxcentre.ca')) return 'remaxcentre.ca';
+    try {
+      if (clean.startsWith('http://') || clean.startsWith('https://')) {
+        const u = new URL(clean);
+        clean = u.hostname;
+      }
+      clean = clean.replace(/^www\./i, '');
+      return clean;
+    } catch (e) {
+      return clean.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+    }
+  };
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<ListingImage[]>([]);
   const [newImage, setNewImage] = useState("");
@@ -1126,8 +1145,8 @@ Format the revised description clearly in clean paragraphs (maximum 3 sentences 
     };
   }, [
     address, city, province, postalCode, price, beds, baths, sqft, sqftMin, sqftMax, useSqftRange,
-    mlsNumber, mlsCountry, originatingSystemName, country, brokerageName, brokerageLogo,
-    agentName, description, images, talkingPoints, tourDescriptors, webhookUrl, documents,
+    mlsNumber, mlsCountry, originatingSystemName, country, brokerageName, importedFrom, brokerageLogo,
+    agentName, communityName, description, images, talkingPoints, tourDescriptors, webhookUrl, documents,
     voiceId, voiceName, welcomeEn, welcomeFr, openHouseDate, openHouseDateFormat,
     openHouseStartTime, openHouseEndTime, enforcePhoneGate, enforceOptInConsent, qrBrandingOption,
     socialShareEnabled, socialShareFacebook, socialShareInstagram, socialShareWhatsapp,
@@ -1485,12 +1504,14 @@ Format the revised description clearly in clean paragraphs (maximum 3 sentences 
         setOriginatingSystemName(data.originatingSystemName || "");
         setCountry(data.country || "US");
         setBrokerageName(data.brokerageName || "");
+        setImportedFrom(cleanImportedFrom(data.importedFrom || data.sourceUrl || ""));
         if (data.brokerageLogo && !data.brokerageLogo.startsWith('blob:')) {
           setBrokerageLogo(data.brokerageLogo);
         } else {
           setBrokerageLogo("");
         }
         setAgentName(data.agentName || "");
+        setCommunityName(data.communityName || "");
         setDescription(formatToParagraphs(data.description || ""));
         
         // Normalize images
@@ -2939,8 +2960,10 @@ Format the revised description clearly in clean paragraphs (maximum 3 sentences 
         originatingSystemName: originatingSystemName || "",
         country: country || "US",
         brokerageName: brokerageName || "",
+        importedFrom: importedFrom || "",
         brokerageLogo: brokerageLogo || "",
         agentName: agentName || "",
+        communityName: communityName || "",
         description: formattedDescription || "",
         images: images || [],
         talkingPoints: talkingPoints || [],
@@ -3691,6 +3714,17 @@ Format the revised description clearly in clean paragraphs (maximum 3 sentences 
                 <div className="space-y-2">
                   <Label>Agent Name <span className="text-slate-400 font-normal">(Optional)</span></Label>
                   <Input value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="Jane Doe" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Community Name <span className="text-slate-400 font-normal">(Optional)</span></Label>
+                  <Input value={communityName} onChange={e => setCommunityName(e.target.value)} placeholder="Aldershot, Bayview, etc." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Imported From <span className="text-slate-400 font-normal">(Realtor.ca, remaxcentre.ca)</span></Label>
+                  <Input value={importedFrom} onChange={e => setImportedFrom(e.target.value)} placeholder="Realtor.ca or remaxcentre.ca" />
                 </div>
               </div>
 

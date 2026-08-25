@@ -98,8 +98,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
     setConciergeMode("text");
     setVoiceConciergeStatus("idle");
     const welcome = voiceConciergeLang === "en"
-      ? "Hello! I am Sora, your AI voice concierge for AI Open House Connect. I am here to help you navigate our platform, answer questions about our premium real estate features, setup kiosks, CRM integrations, or customized property tours. I can also understand and speak over 65+ languages, so feel free to talk to me in whichever language you prefer. How can I help you today?"
-      : "Bonjour ! Je suis Sora, votre concierge vocal IA de AI Open House Connect. Je suis ici pour vous aider à naviguer sur notre plateforme et répondre à vos questions sur nos fonctionnalités immobilières premium, nos bornes tactiles, nos intégrations CRM ou nos visites virtuelles personnalisées. Je peux également comprendre et parler plus de 65 langues différentes, alors n'hésitez pas à me parler dans la langue de votre choix. Comment puis-je vous aider aujourd'hui ?";
+      ? "Hello! I am Sora, your AI voice concierge for AI Open House Connect. I am here to help you navigate our platform, set up kiosks, CRM integrations, and customized property tours. Remember that as an agent, you can easily set up and create custom shortcut commands! For example, you can create a shortcut like saying 'Go to Leads' to instantly navigate to your captured leads, or saying 'New Tour' to quickly launch the AI tour builder. How can I help you today?"
+      : "Bonjour ! Je suis Sora, votre concierge vocal IA de AI Open House Connect. Je suis ici pour vous aider à naviguer sur notre plateforme, configurer des bornes tactiles, des intégrations CRM et des visites guidées. N'oubliez pas qu'en tant qu'agent, vous pouvez créer des commandes de raccourcis personnalisées ! Par exemple, vous pouvez dire 'Aller aux prospects' pour accéder instantanément à vos contacts, ou dire 'Nouvelle visite' pour lancer rapidement le générateur de visites IA. Comment puis-je vous aider aujourd'hui ?";
     setVoiceConciergeHistory([{ role: "assistant", text: welcome }]);
   };
 
@@ -146,6 +146,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
 
   const stopVoiceConciergeAudio = () => {
     if (audioPlayerRef.current) {
+      audioPlayerRef.current.onerror = null;
+      audioPlayerRef.current.onended = null;
       audioPlayerRef.current.pause();
       audioPlayerRef.current.src = "";
       audioPlayerRef.current = null;
@@ -267,12 +269,20 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           };
 
           audio.onerror = (e) => {
-            console.error("Audio playback error:", e);
+            if (audio.src) {
+              console.warn("Audio playback issue:", e);
+            }
             setVoiceConciergeStatus("idle");
             startSpeechRecognition();
           };
 
-          await audio.play();
+          audio.play().catch(err => {
+            if (err.name !== "AbortError") {
+              console.warn("Audio play interrupted:", err);
+            }
+            setVoiceConciergeStatus("idle");
+            startSpeechRecognition();
+          });
         } else {
           setVoiceConciergeStatus("idle");
           startSpeechRecognition();
@@ -326,12 +336,20 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         };
 
         audio.onerror = (e) => {
-          console.error("Audio playback error:", e);
+          if (audio.src) {
+            console.warn("Audio playback issue:", e);
+          }
           setVoiceConciergeStatus("idle");
           startSpeechRecognition();
         };
 
-        await audio.play();
+        audio.play().catch(err => {
+          if (err.name !== "AbortError") {
+            console.warn("Audio play interrupted:", err);
+          }
+          setVoiceConciergeStatus("idle");
+          startSpeechRecognition();
+        });
       } else {
         setVoiceConciergeStatus("idle");
         startSpeechRecognition();
@@ -394,7 +412,10 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       };
 
       rec.onerror = (event: any) => {
-        console.error("Speech recognition error:", event.error, event);
+        if (event.error === "aborted" || event.error === "no-speech") {
+          return;
+        }
+        console.warn("Speech recognition warning:", event.error, event);
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
           setVoiceConciergeStatus("idle");
         }
@@ -479,11 +500,19 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           startSpeechRecognition();
         };
         audio.onerror = (e) => {
-          console.error("Audio playback error:", e);
+          if (audio.src) {
+            console.warn("Audio playback issue:", e);
+          }
           setVoiceConciergeStatus("idle");
           startSpeechRecognition();
         };
-        await audio.play();
+        audio.play().catch(err => {
+          if (err.name !== "AbortError") {
+            console.warn("Audio play interrupted:", err);
+          }
+          setVoiceConciergeStatus("idle");
+          startSpeechRecognition();
+        });
       } else {
         setVoiceConciergeStatus("idle");
         if (!isTextMode) {
@@ -1503,11 +1532,31 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             </div>
           )}
 
+          {/* BACK TO MODE MENU BUTTON (For Voice or Text mode) */}
+          {conciergeMode !== "select" && (
+            <div className="flex items-center justify-between pb-1 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  stopVoiceConciergeAudio();
+                  if (recognitionRef.current) {
+                    try { recognitionRef.current.stop(); } catch (e) {}
+                    recognitionRef.current = null;
+                  }
+                  setConciergeMode("select");
+                }}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+              >
+                ← {voiceConciergeLang === "en" ? "Back to Mode Menu" : "Retour au menu"}
+              </button>
+            </div>
+          )}
+
           {/* VOICE MODE UI */}
           {conciergeMode === "voice" && (
             <>
               {/* Interactive Mic Visualization Area */}
-              <div className="flex flex-col items-center justify-center py-6 bg-gradient-to-b from-stone-50/50 to-white border-y border-stone-100 relative overflow-hidden">
+              <div className="flex flex-col items-center justify-center py-8 bg-gradient-to-b from-stone-50/50 to-white border border-stone-100 rounded-2xl relative overflow-hidden my-3">
                 {/* Visual pulsing wave ring */}
                 <div className="relative flex items-center justify-center h-28 w-28">
                   {voiceConciergeStatus === "listening" && (
@@ -1578,29 +1627,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                   {voiceConciergeStatus === "speaking" && (voiceConciergeLang === "en" ? "Sora is speaking..." : "Sora parle...")}
                   {voiceConciergeStatus === "idle" && (voiceConciergeLang === "en" ? "Tap To Start" : "Appuyez pour démarrer")}
                 </p>
-              </div>
-
-              {/* Dialogue Log Terminal */}
-              <div className="flex-1 min-h-[160px] max-h-[220px] overflow-y-auto border border-stone-100 rounded-2xl bg-stone-950 p-4 font-sans text-xs space-y-4 shadow-inner my-3">
-                {voiceConciergeHistory.map((turn, i) => (
-                  <div 
-                    key={i} 
-                    className={`flex flex-col space-y-1 ${turn.role === "user" ? "items-end" : "items-start"}`}
-                  >
-                    <span className="text-[9px] font-black uppercase tracking-wider text-stone-500">
-                      {turn.role === "user" 
-                        ? (voiceConciergeLang === "en" ? "You" : "Vous") 
-                        : (voiceConciergeLang === "en" ? "Sora" : "Sora")}
-                    </span>
-                    <span className={`p-2.5 rounded-xl max-w-[85%] leading-relaxed ${
-                      turn.role === "user" 
-                        ? "bg-stone-800 text-stone-200 rounded-tr-none border border-stone-700/50" 
-                        : "bg-blue-600 text-white rounded-tl-none shadow-md"
-                    }`}>
-                      {turn.text}
-                    </span>
-                  </div>
-                ))}
               </div>
             </>
           )}

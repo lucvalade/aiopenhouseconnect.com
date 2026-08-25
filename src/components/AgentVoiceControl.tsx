@@ -22,6 +22,29 @@ export default function AgentVoiceControl() {
   const [parseResult, setParseResult] = useState<any>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
+  const [showModeInfo, setShowModeInfo] = useState(false);
+  const [shortcuts, setShortcuts] = useState<Array<{ id: string; trigger: string; action: string }>>(() => {
+    try {
+      const saved = localStorage.getItem("ai_voice_shortcuts");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      { id: "1", trigger: "Go to Leads", action: "Navigate to Leads View" },
+      { id: "2", trigger: "New Tour", action: "Launch AI Tour Builder" }
+    ];
+  });
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [newTrigger, setNewTrigger] = useState("");
+  const [newAction, setNewAction] = useState("");
+  const [editingShortcutId, setEditingShortcutId] = useState<string | null>(null);
+  const [editTrigger, setEditTrigger] = useState("");
+  const [editAction, setEditAction] = useState("");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("ai_voice_shortcuts", JSON.stringify(shortcuts));
+    } catch (e) {}
+  }, [shortcuts]);
 
   // Disambiguation states
   const [leadMatches, setLeadMatches] = useState<Lead[]>([]);
@@ -73,7 +96,10 @@ export default function AgentVoiceControl() {
     };
 
     rec.onerror = (event: any) => {
-      console.error("Speech recognition error", event);
+      if (event.error === "aborted" || event.error === "no-speech") {
+        return;
+      }
+      console.warn("Speech recognition warning", event);
       if (event.error !== "no-speech") {
         toast.error(`Voice error: ${event.error}`);
         setIsListening(false);
@@ -329,7 +355,7 @@ export default function AgentVoiceControl() {
       {/* Main Voice Panel Modal / Drawer overlay */}
       {isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <Card className="w-full max-w-lg bg-white border-none shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-300">
+          <Card className="w-full max-w-lg bg-white border-none shadow-2xl rounded-2xl overflow-hidden relative animate-in fade-in slide-in-from-bottom-8 duration-300">
             {/* Header */}
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center gap-2">
@@ -357,21 +383,166 @@ export default function AgentVoiceControl() {
             </div>
 
             <CardContent className="p-6 space-y-6">
-              {/* Voice Mode Toggles */}
-              <div className="flex justify-center p-1 bg-slate-100 rounded-lg">
-                {(["auto", "command", "dictation"] as const).map(mode => (
-                  <button
-                    key={mode}
-                    onClick={() => setActiveMode(mode)}
-                    className={`flex-1 text-center py-1.5 text-xs font-bold rounded-md capitalize transition-all ${
-                      activeMode === mode
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    {mode === "auto" ? "⚡ Auto-Detect" : mode}
-                  </button>
-                ))}
+              {/* Voice Mode Toggles with Info ? Button */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Interaction Mode</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowShortcutsModal(!showShortcutsModal)}
+                      className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-semibold cursor-pointer bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200"
+                      title="Manage custom voice shortcut commands"
+                    >
+                      <span>⚡ Shortcuts</span>
+                    </button>
+                    <button
+                      onClick={() => setShowModeInfo(!showModeInfo)}
+                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
+                      title="What are these modes for?"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                      <span>Mode Guide</span>
+                    </button>
+                  </div>
+                </div>
+
+                {showShortcutsModal && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs text-emerald-950 space-y-3 animate-in fade-in duration-200">
+                    <div className="font-bold flex items-center justify-between border-b border-emerald-200 pb-1.5">
+                      <span>⚡ Custom Voice Shortcut Commands</span>
+                      <button onClick={() => setShowShortcutsModal(false)} className="text-emerald-600 hover:text-emerald-900 font-semibold text-[11px]">Close</button>
+                    </div>
+                    <p className="text-[11px] text-emerald-800">
+                      Create custom voice triggers for rapid navigation and actions. Try saying your custom trigger anytime!
+                    </p>
+                    <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+                      {shortcuts.map(sc => (
+                        <div key={sc.id} className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-emerald-100 text-[11px]">
+                          {editingShortcutId === sc.id ? (
+                            <div className="flex gap-1.5 flex-1 mr-2">
+                              <input
+                                type="text"
+                                value={editTrigger}
+                                onChange={(e) => setEditTrigger(e.target.value)}
+                                className="flex-1 px-1.5 py-0.5 border border-emerald-300 rounded text-[11px]"
+                              />
+                              <input
+                                type="text"
+                                value={editAction}
+                                onChange={(e) => setEditAction(e.target.value)}
+                                className="flex-1 px-1.5 py-0.5 border border-emerald-300 rounded text-[11px]"
+                              />
+                              <button
+                                onClick={() => {
+                                  if (editTrigger.trim() && editAction.trim()) {
+                                    setShortcuts(shortcuts.map(s => s.id === sc.id ? { ...s, trigger: editTrigger.trim(), action: editAction.trim() } : s));
+                                    setEditingShortcutId(null);
+                                    toast.success("Shortcut updated!");
+                                  }
+                                }}
+                                className="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-[10px]"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingShortcutId(null)}
+                                className="text-slate-500 hover:text-slate-700 font-bold px-1 text-[10px]"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <span className="font-bold text-slate-900">"{sc.trigger}"</span>
+                                <span className="text-slate-500 ml-2">→ {sc.action}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingShortcutId(sc.id);
+                                    setEditTrigger(sc.trigger);
+                                    setEditAction(sc.action);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 text-[10px] font-bold"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => setShortcuts(shortcuts.filter(s => s.id !== sc.id))}
+                                  className="text-rose-500 hover:text-rose-700 text-[10px] font-bold"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {/* Add shortcut form */}
+                    <div className="flex gap-2 pt-1 border-t border-emerald-200">
+                      <input
+                        type="text"
+                        placeholder="Trigger phrase (e.g. 'Open Calendar')"
+                        value={newTrigger}
+                        onChange={(e) => setNewTrigger(e.target.value)}
+                        className="flex-1 px-2 py-1 bg-white border border-emerald-300 rounded-md text-[11px] text-slate-900"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Action description"
+                        value={newAction}
+                        onChange={(e) => setNewAction(e.target.value)}
+                        className="flex-1 px-2 py-1 bg-white border border-emerald-300 rounded-md text-[11px] text-slate-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newTrigger.trim() && newAction.trim()) {
+                            setShortcuts([...shortcuts, { id: String(Date.now()), trigger: newTrigger.trim(), action: newAction.trim() }]);
+                            setNewTrigger("");
+                            setNewAction("");
+                            toast.success("Shortcut command saved successfully!");
+                          }
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1 rounded-md text-[11px] cursor-pointer"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-center p-1 bg-slate-100 rounded-lg">
+                  {(["auto", "command", "dictation"] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setActiveMode(mode)}
+                      className={`flex-1 text-center py-1.5 text-xs font-bold rounded-md capitalize transition-all ${
+                        activeMode === mode
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      {mode === "auto" ? "⚡ Auto-Detect" : mode}
+                    </button>
+                  ))}
+                </div>
+
+                {showModeInfo && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 text-xs text-blue-900 space-y-2 animate-in fade-in duration-200">
+                    <div className="font-bold flex items-center justify-between border-b border-blue-200 pb-1">
+                      <span>ℹ️ Voice Mode Guide</span>
+                      <button onClick={() => setShowModeInfo(false)} className="text-blue-400 hover:text-blue-700 text-[11px]">Close</button>
+                    </div>
+                    <ul className="space-y-1.5 text-[11px] leading-relaxed">
+                      <li><strong>⚡ Auto-Detect:</strong> Intelligently detects whether your voice input is an app command (navigation, safety check) or notes dictation.</li>
+                      <li><strong>Command:</strong> Strictly parses requests for app navigation, data refreshes, safety check-ins, and CRM actions.</li>
+                      <li><strong>Dictation:</strong> Optimizes speech transcription for capturing detailed property notes, client feedback, and follow-up reminders.</li>
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {/* Listening Waves and Live Preview */}
@@ -609,14 +780,14 @@ export default function AgentVoiceControl() {
                 </div>
               )}
 
-              {/* Help Overlay Drawer */}
+              {/* Help Overlay Popover */}
               {showHelp && (
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs text-slate-600 space-y-3 animate-in fade-in slide-in-from-top-4 duration-200">
-                  <div className="font-bold text-slate-800 uppercase tracking-wider pb-1 border-b border-slate-200 flex items-center justify-between">
+                <div className="absolute inset-0 z-50 bg-white p-6 overflow-y-auto space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="font-bold text-slate-900 text-sm uppercase tracking-wider pb-3 border-b border-slate-200 flex items-center justify-between">
                     <span>💡 Sample Commands & Voice Guide</span>
-                    <button onClick={() => setShowHelp(false)} className="text-slate-400 hover:text-slate-600">Close</button>
+                    <button onClick={() => setShowHelp(false)} className="text-slate-500 hover:text-slate-800 font-bold px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs">Close</button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-3 text-xs text-slate-700 leading-relaxed">
                     <p>
                       <strong>🌐 Navigation:</strong> "Go to Leads Captured", "Go to Open Houses", "Go to Listings", "Go to Integrations", "Go to FAQ", "Go back"
                     </p>

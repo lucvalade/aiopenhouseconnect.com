@@ -347,8 +347,8 @@ export default function ProtectedLayout() {
       path: "/app/listings",
       subLinks: [
         { label: "Active Listings", path: "/app/listings?tab=active", icon: CheckCircle2 },
-        { label: "Listings Performance", path: "/app/agent-listings", icon: Activity },
         { label: "Expired Listings", path: "/app/listings?tab=expired", icon: Clock },
+        { label: "Listings Performance", path: "/app/agent-listings", icon: Activity },
       ]
     },
     { label: "Open Houses", icon: Home, path: "/app/openhouses" },
@@ -371,6 +371,7 @@ export default function ProtectedLayout() {
       subLinks: [
         { label: "AI Tour", path: "/app/aitours", icon: Mic2 },
         { label: "Voice Lab", path: "/app/voicelab", icon: Volume2 },
+        { label: "Photo Enhancer", path: "/app/photo-enhancer", icon: Image },
       ]
     },
     { 

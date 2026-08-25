@@ -363,4 +363,5 @@ export async function loginWithEmail(email: string, pass: string) {
 
 export async function logout() {
   await signOut(auth);
+  window.location.href = "/";
 }

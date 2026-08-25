@@ -247,6 +247,7 @@ createRoot(document.getElementById('root')!).render(
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<Overview />} />
               <Route path="listings" element={<Listings />} />
+              <Route path="photo-enhancer" element={<PhotoEnhancer />} />
               <Route path="listings/photo-enhancer" element={<PhotoEnhancer />} />
               <Route path="listings/:listingId" element={<ListingDetails />} />
               <Route path="listings/edit/:listingId?" element={<EditListing />} />
